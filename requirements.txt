@@ -1,0 +1,9 @@
+langchain
+langchain-google-genai
+google-generativeai
+faiss-cpu
+sentence-transformers
+Flask
+gunicorn
+pypdf
+python-docx

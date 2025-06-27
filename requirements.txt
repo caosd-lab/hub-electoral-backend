@@ -4,6 +4,7 @@ google-generativeai
 faiss-cpu
 sentence-transformers
 Flask
+flask-cors
 gunicorn
 pypdf
 python-docx

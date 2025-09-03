@@ -2,6 +2,6 @@ flask[async]
 flask-cors
 langchain
 langchain-google-genai
-google-generativelai
+google-generativeai
 pypdf
 gunicorn

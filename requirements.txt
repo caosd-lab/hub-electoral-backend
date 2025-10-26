@@ -1,9 +1,13 @@
-flask[async]
-flask-cors
-langchain-core
-langchain
-langchain-community
-langchain-google-genai
-google-generativeai
+flask[async]==3.0.0
+flask-cors==4.0.0
+langchain-core==0.1.45
+langchain==0.1.16
+langchain-community==0.0.34
+langchain-google-genai==0.1.3
+google-generativeai==0.4.1 # Pinning this too for safety
 pypdf
 gunicorn
+faiss-cpu
+sentence-transformers
+nest_asyncio
+pydantic<2 # Explicitly force Pydantic v1 compatibility

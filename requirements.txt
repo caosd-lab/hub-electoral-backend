@@ -1,9 +1,9 @@
 flask[async]
 flask-cors
-langchain-core==0.1.52
-langchain==0.1.20
-langchain-community==0.0.38
-langchain-google-genai==0.1.5
+langchain-core
+langchain
+langchain-community
+langchain-google-genai
 google-generativeai
 pypdf
 gunicorn

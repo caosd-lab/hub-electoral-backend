@@ -16,7 +16,7 @@ if "GOOGLE_API_KEY" not in os.environ:
     raise ValueError("la variable de entorno GOOGLE_API_KEY no está configurada.")
 
 # Cargamos los dos motores de IA
-llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0.1)
+llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.1)
 llm_pro = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.7)
 
 # Cargamos nuestra "enciclopedia" (el archivo JSON) en la memoria

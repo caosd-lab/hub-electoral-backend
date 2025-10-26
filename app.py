@@ -16,8 +16,8 @@ if "GOOGLE_API_KEY" not in os.environ:
     raise ValueError("la variable de entorno GOOGLE_API_KEY no está configurada.")
 
 # Cargamos los dos motores de IA
-llm_flash = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0.1)
-llm_pro = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.7)
+llm_flash = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+llm_pro = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.7)
 
 # Cargamos nuestra "enciclopedia" (el archivo JSON) en la memoria
 try:
@@ -29,8 +29,10 @@ except FileNotFoundError:
     print("ADVERTENCIA: No se encontró 'knowledge_base.json'. El asistente no tendrá información.")
 
 # --- Creamos las Cadenas de Pensamiento ---
-# (Las definiciones de PROMPT_CLASSIFIER, classifier_chain, final_response_prompt, final_chain no cambian)
+
+# <<< INICIO DE LA MODIFICACIÓN 1: El "Recepcionista" ahora es más inteligente >>>
 # 1. El "Recepcionista" (Clasificador de Intención)
+# Añadimos la categoría 'charla_general' para que pueda manejar más tipos de conversación.
 prompt_classifier_template = """
 Clasifica el siguiente texto del usuario en una de estas tres categorías: 'saludo', 'charla_general' o 'pregunta_analitica'.
 - 'saludo': Para saludos simples como 'hola', 'buenos días'.
@@ -44,7 +46,10 @@ CLASIFICACIÓN:
 """
 PROMPT_CLASSIFIER = PromptTemplate(template=prompt_classifier_template, input_variables=["user_input"])
 classifier_chain = LLMChain(llm=llm_flash, prompt=PROMPT_CLASSIFIER)
+# <<< FIN DE LA MODIFICACIÓN 1 >>>
 
+
+# <<< INICIO DE LA MODIFICACIÓN 2: El "Manual de Estilo" ahora incluye tablas con bordes >>>
 # 2. El "Analista Final" (con el Manual de Estilo Restaurado)
 final_response_prompt = PromptTemplate(
     input_variables=["contexto_preciso", "pregunta_usuario"],
@@ -88,6 +93,7 @@ final_response_prompt = PromptTemplate(
     """
 )
 final_chain = LLMChain(llm=llm_pro, prompt=final_response_prompt)
+# <<< FIN DE LA MODIFICACIÓN 2 >>>
 
 
 print("¡Servidor de consulta (Maestro) listo!")
@@ -100,35 +106,34 @@ def ask_question():
 
     print(f"Recibida pregunta: '{pregunta}'")
     try:
-        # <<< INICIO DE LA MODIFICACIÓN PARA PRUEBA >>>
-        # --- PASO 1: DETECCIÓN DE INTENCIÓN (Temporalmente desactivado para prueba) ---
-        # Comentamos la llamada a la IA para clasificar la intención
-        # intent_response = classifier_chain.invoke({"user_input": pregunta})
-        # intent = intent_response['text'].strip().lower()
-        # print(f"Intención detectada: {intent}")
-
-        # En su lugar, hacemos una comprobación simple y directa para saludos comunes
-        pregunta_limpia = pregunta.lower().strip()
-        if pregunta_limpia in ["hola", "hi", "buenos dias", "buenas tardes", "buenas noches", "hello"]:
-             intent = "saludo"
-             print(f"Intención detectada (simple): {intent}") # Añadimos un print para saber que funcionó
-        else:
-             # Si no es un saludo simple, asumimos que es una pregunta analítica para esta prueba
-             intent = "pregunta_analitica"
-             print(f"Intención detectada (simple): {intent}")
-        # <<< FIN DE LA MODIFICACIÓN PARA PRUEBA >>>
+        # --- PASO 1: DETECCIÓN DE INTENCIÓN ---
+        intent_response = classifier_chain.invoke({"user_input": pregunta})
+        intent = intent_response['text'].strip().lower()
+        print(f"Intención detectada: {intent}")
 
         if "saludo" in intent:
-            # Esta respuesta ahora es inmediata, no requiere llamada a la IA
             respuesta_texto = "¡Hola! Soy el asistente del Hub Electoral. ¿En qué puedo ayudarte con los programas presidenciales?"
             return jsonify({"answer": respuesta_texto, "sources": []})
         
-        # El manejo de 'charla_general' queda temporalmente inactivo con este cambio,
-        # ya que ahora todo lo que no es saludo se trata como 'pregunta_analitica'.
-        # Esto es solo para la prueba.
+        # <<< INICIO DE LA MODIFICACIÓN 1 (continuación): Manejo de "charla_general" >>>
+        elif "charla_general" in intent:
+            # Para estas preguntas, creamos una respuesta amigable al vuelo.
+            conversational_prompt = PromptTemplate(
+                input_variables=["pregunta_usuario"],
+                template="""
+                Eres un asistente de IA llamado Hub Electoral. Tu única función es analizar programas de gobierno de candidatos.
+                Responde a la siguiente pregunta del usuario de forma breve, amigable y en español, recordando siempre cuál es tu propósito principal.
+                Pregunta: {pregunta_usuario}
+                Respuesta:
+                """
+            )
+            conversational_chain = LLMChain(llm=llm_flash, prompt=conversational_prompt)
+            response = conversational_chain.invoke({"pregunta_usuario": pregunta})
+            return jsonify({"answer": response['text'], "sources": []})
+        # <<< FIN DE LA MODIFICACIÓN 1 >>>
         
         # Si la intención es 'pregunta_analitica', procedemos como antes
-        else: # (intent == "pregunta_analitica")
+        else:
             contexto = json.dumps(knowledge_base, ensure_ascii=False, indent=2)
             
             respuesta_final = final_chain.invoke({

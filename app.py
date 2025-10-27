@@ -19,7 +19,7 @@ if "GOOGLE_API_KEY" not in os.environ:
 
 # Cargamos los dos motores de IA
 # <<< CORRECCIÓN: Usamos el nombre de modelo estable sin -latest para flash >>>
-llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0.1)
+llm_flash = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
 llm_pro = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.7)
 
 # Cargamos nuestra "enciclopedia" (el archivo JSON) en la memoria

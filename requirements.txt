@@ -4,7 +4,6 @@ langchain-core>=0.3.0
 langchain>=0.2.0
 langchain-community
 langchain-google-genai==3.0.0
-google-generativeai
 pypdf
 gunicorn
 pydantic>=2.0.0

@@ -3,7 +3,7 @@ import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain.chains.llm import LLMChain
 
 # --- Configuración y Carga ---

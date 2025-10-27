@@ -1,13 +1,9 @@
 flask[async]
 flask-cors
-langchain-core==0.1.52 # Keep this core version
-langchain # Let pip choose the latest compatible main library
-langchain-community # Let pip choose the latest compatible community library
-langchain-google-genai # Let pip choose the latest compatible google library
+langchain-core
+langchain
+langchain-community
+langchain-google-genai
 google-generativeai
 pypdf
 gunicorn
-faiss-cpu
-sentence-transformers
-nest_asyncio
-pydantic<2 # Still force Pydantic v1

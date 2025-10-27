@@ -16,7 +16,7 @@ if "GOOGLE_API_KEY" not in os.environ:
     raise ValueError("la variable de entorno GOOGLE_API_KEY no está configurada.")
 
 # Cargamos los dos motores de IA
-llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0.1)
+llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.1)
 llm_pro = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.7)
 
 # Cargamos nuestra "enciclopedia" (el archivo JSON) en la memoria
@@ -30,9 +30,7 @@ except FileNotFoundError:
 
 # --- Creamos las Cadenas de Pensamiento ---
 
-# <<< INICIO DE LA MODIFICACIÓN 1: El "Recepcionista" ahora es más inteligente >>>
 # 1. El "Recepcionista" (Clasificador de Intención)
-# Añadimos la categoría 'charla_general' para que pueda manejar más tipos de conversación.
 prompt_classifier_template = """
 Clasifica el siguiente texto del usuario en una de estas tres categorías: 'saludo', 'charla_general' o 'pregunta_analitica'.
 - 'saludo': Para saludos simples como 'hola', 'buenos días'.
@@ -46,10 +44,8 @@ CLASIFICACIÓN:
 """
 PROMPT_CLASSIFIER = PromptTemplate(template=prompt_classifier_template, input_variables=["user_input"])
 classifier_chain = LLMChain(llm=llm_flash, prompt=PROMPT_CLASSIFIER)
-# <<< FIN DE LA MODIFICACIÓN 1 >>>
 
 
-# <<< INICIO DE LA MODIFICACIÓN 2: El "Manual de Estilo" ahora incluye tablas con bordes >>>
 # 2. El "Analista Final" (con el Manual de Estilo Restaurado)
 final_response_prompt = PromptTemplate(
     input_variables=["contexto_preciso", "pregunta_usuario"],
@@ -93,7 +89,19 @@ final_response_prompt = PromptTemplate(
     """
 )
 final_chain = LLMChain(llm=llm_pro, prompt=final_response_prompt)
-# <<< FIN DE LA MODIFICACIÓN 2 >>>
+
+
+# <<< INICIO DE LA MODIFICACIÓN: Función de "Calentamiento" >>>
+def warmup_llm():
+    """Hace una llamada simple a la IA para inicializar la conexión."""
+    print("Realizando llamada de calentamiento a la API de Google AI...")
+    try:
+        # Hacemos una pregunta trivial al clasificador (usa llm_flash)
+        classifier_chain.invoke({"user_input": "test warmup"})
+        print("Calentamiento completado exitosamente.")
+    except Exception as e:
+        print(f"ADVERTENCIA: Falló la llamada de calentamiento: {e}")
+# <<< FIN DE LA MODIFICACIÓN >>>
 
 
 print("¡Servidor de consulta (Maestro) listo!")
@@ -115,7 +123,6 @@ def ask_question():
             respuesta_texto = "¡Hola! Soy el asistente del Hub Electoral. ¿En qué puedo ayudarte con los programas presidenciales?"
             return jsonify({"answer": respuesta_texto, "sources": []})
         
-        # <<< INICIO DE LA MODIFICACIÓN 1 (continuación): Manejo de "charla_general" >>>
         elif "charla_general" in intent:
             # Para estas preguntas, creamos una respuesta amigable al vuelo.
             conversational_prompt = PromptTemplate(
@@ -130,7 +137,6 @@ def ask_question():
             conversational_chain = LLMChain(llm=llm_flash, prompt=conversational_prompt)
             response = conversational_chain.invoke({"pregunta_usuario": pregunta})
             return jsonify({"answer": response['text'], "sources": []})
-        # <<< FIN DE LA MODIFICACIÓN 1 >>>
         
         # Si la intención es 'pregunta_analitica', procedemos como antes
         else:
@@ -149,4 +155,7 @@ def ask_question():
         return jsonify({"error": f"Error interno del servidor: {e}"}), 500
 
 if __name__ == '__main__':
+    # <<< INICIO DE LA MODIFICACIÓN: Llamamos al calentamiento antes de iniciar >>>
+    warmup_llm()
+    # <<< FIN DE LA MODIFICACIÓN >>>
     app.run(host='0.0.0.0', port=8080)

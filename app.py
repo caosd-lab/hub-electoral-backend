@@ -3,8 +3,10 @@ import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
+# <<< CORRECCIÓN: Importamos PromptTemplate desde langchain_core >>>
 from langchain_core.prompts import PromptTemplate
-from langchain.chains.llm import LLMChain
+# <<< CORRECCIÓN: Ya no necesitamos LLMChain si usamos la sintaxis | >>>
+# from langchain.chains.llm import LLMChain
 
 # --- Configuración y Carga ---
 app = Flask(__name__)
@@ -16,7 +18,8 @@ if "GOOGLE_API_KEY" not in os.environ:
     raise ValueError("la variable de entorno GOOGLE_API_KEY no está configurada.")
 
 # Cargamos los dos motores de IA
-llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0.1)
+# <<< CORRECCIÓN: Usamos el nombre de modelo estable sin -latest para flash >>>
+llm_flash = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.1)
 llm_pro = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.7)
 
 # Cargamos nuestra "enciclopedia" (el archivo JSON) en la memoria
@@ -32,11 +35,11 @@ except FileNotFoundError:
 
 # <<< INICIO DE LA MODIFICACIÓN 1: El "Recepcionista" ahora es más inteligente >>>
 # 1. El "Recepcionista" (Clasificador de Intención)
-# Añadimos la categoría 'charla_general' para que pueda manejar más tipos de conversación.
+# Añadimos la categoría 'charla_general' y actualizamos la descripción.
 prompt_classifier_template = """
 Clasifica el siguiente texto del usuario en una de estas tres categorías: 'saludo', 'charla_general' o 'pregunta_analitica'.
 - 'saludo': Para saludos simples como 'hola', 'buenos días'.
-- 'charla_general': Para preguntas sobre tus capacidades, tu estado o temas fuera de los programas (ej: '¿cómo puedes ayudarme?', '¿qué haces?', '¿cómo estás?').
+- 'charla_general': Para preguntas sobre tus capacidades, tu estado o temas fuera de los programas electorales (ej: '¿cómo puedes ayudarme?', '¿qué haces?', '¿cómo estás?').
 - 'pregunta_analitica': Para cualquier pregunta que requiera analizar el contenido de los programas electorales.
 
 Responde únicamente con una de esas tres clasificaciones.
@@ -45,12 +48,13 @@ TEXTO DEL USUARIO: "{user_input}"
 CLASIFICACIÓN:
 """
 PROMPT_CLASSIFIER = PromptTemplate(template=prompt_classifier_template, input_variables=["user_input"])
-classifier_chain = LLMChain(llm=llm_flash, prompt=PROMPT_CLASSIFIER)
+# <<< Usamos la sintaxis moderna para crear la cadena >>>
+classifier_chain = PROMPT_CLASSIFIER | llm_flash
 # <<< FIN DE LA MODIFICACIÓN 1 >>>
 
 
 # <<< INICIO DE LA MODIFICACIÓN 2: El "Manual de Estilo" ahora incluye tablas con bordes >>>
-# 2. El "Analista Final" (con el Manual de Estilo Restaurado)
+# 2. El "Analista Final" (con el Manual de Estilo Restaurado y Mejorado)
 final_response_prompt = PromptTemplate(
     input_variables=["contexto_preciso", "pregunta_usuario"],
     template="""
@@ -78,9 +82,9 @@ final_response_prompt = PromptTemplate(
             <td style="padding: 8px; border: 1px solid #555;">Nombre Candidato</td>
             <td style="padding: 8px; border: 1px solid #555;">Detalle de la propuesta.</td>
           </tr>
-        </tbody>
+          </tbody>
       </table>
-    - Importante: No incluyas los marcadores de bloque de código como ```html. Tu respuesta debe empezar directamente con la primera etiqueta HTML.
+    - Importante: No incluyas los marcadores de bloque de código como ```html. Tu respuesta debe empezar directamente con la primera etiqueta HTML (ej: <p>, <ul>, <table>) y terminar con la última etiqueta de cierre correspondiente.
 
     --- BASE DE CONOCIMIENTO ESTRUCTURADA ---
     {contexto_preciso}
@@ -92,7 +96,8 @@ final_response_prompt = PromptTemplate(
     RESPUESTA PROFESIONAL Y BIEN FORMATEADA (siguiendo la Regla 2):
     """
 )
-final_chain = LLMChain(llm=llm_pro, prompt=final_response_prompt)
+# <<< Usamos la sintaxis moderna para crear la cadena >>>
+final_chain = final_response_prompt | llm_pro
 # <<< FIN DE LA MODIFICACIÓN 2 >>>
 
 
@@ -107,8 +112,9 @@ def ask_question():
     print(f"Recibida pregunta: '{pregunta}'")
     try:
         # --- PASO 1: DETECCIÓN DE INTENCIÓN ---
+        # <<< Usamos .invoke() y accedemos a .content >>>
         intent_response = classifier_chain.invoke({"user_input": pregunta})
-        intent = intent_response['text'].strip().lower()
+        intent = intent_response.content.strip().lower()
         print(f"Intención detectada: {intent}")
 
         if "saludo" in intent:
@@ -127,9 +133,11 @@ def ask_question():
                 Respuesta:
                 """
             )
-            conversational_chain = LLMChain(llm=llm_flash, prompt=conversational_prompt)
+            # <<< Usamos la sintaxis moderna para crear y llamar la cadena >>>
+            conversational_chain = conversational_prompt | llm_flash
             response = conversational_chain.invoke({"pregunta_usuario": pregunta})
-            return jsonify({"answer": response['text'], "sources": []})
+            # <<< Accedemos a .content >>>
+            return jsonify({"answer": response.content, "sources": []})
         # <<< FIN DE LA MODIFICACIÓN 1 >>>
         
         # Si la intención es 'pregunta_analitica', procedemos como antes
@@ -142,11 +150,13 @@ def ask_question():
             })
 
             fuentes = [candidato.get('candidato_nombre', 'Candidato sin nombre') for candidato in knowledge_base]
-            return jsonify({"answer": respuesta_final['text'], "sources": fuentes})
+            # <<< Accedemos a .content >>>
+            return jsonify({"answer": respuesta_final.content, "sources": fuentes})
 
     except Exception as e:
         print(f"Error en el servidor: {e}")
         return jsonify({"error": f"Error interno del servidor: {e}"}), 500
 
 if __name__ == '__main__':
+    # El calentamiento no es necesario con esta arquitectura estable
     app.run(host='0.0.0.0', port=8080)
